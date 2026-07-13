@@ -38,7 +38,7 @@ def render_world(sim, path: str | None = "world.png", show: bool = False):
     ax.set_ylim(0, sim.grid_size)
     ax.set_aspect("equal")
     ax.invert_yaxis()  # +y = South, matching the sensor convention
-    ax.set_title(f"ADNS world  t={sim.timestep}  pop={len(sim.population)}")
+    ax.set_title(f"SPECIES world  t={sim.timestep}  pop={len(sim.population)}")
     ax.legend(loc="upper right")
 
     if path:

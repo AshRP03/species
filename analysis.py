@@ -1,6 +1,6 @@
 """Perception-action instrumentation.
 
-The point of ADNS is to watch for sensor input causally driving adaptive
+The point of SPECIES is to watch for sensor input causally driving adaptive
 behaviour, and eventually for distinct sub-regions of the graph to specialise.
 This module measures that at three levels:
 

@@ -1,4 +1,4 @@
-"""ADNS V0 entry point.
+"""SPECIES V0 entry point.
 
 Run the simulation end-to-end, print periodic stats, and (optionally) save
 plots of the world and the run history.
@@ -18,7 +18,7 @@ from simulation import Simulation
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="ADNS V0 simulation")
+    p = argparse.ArgumentParser(description="SPECIES V0 simulation")
     p.add_argument("--timesteps", type=int, default=config.DEFAULT_TIMESTEPS)
     p.add_argument("--seed", type=int, default=config.SEED)
     p.add_argument("--grid-size", type=int, default=config.GRID_SIZE)
@@ -48,7 +48,7 @@ def main() -> None:
     sim = Simulation(seed=args.seed, grid_size=args.grid_size)
     logger = Logger()
 
-    print(f"ADNS V0 — {args.timesteps} timesteps, seed={args.seed}, grid={args.grid_size}")
+    print(f"SPECIES V0 — {args.timesteps} timesteps, seed={args.seed}, grid={args.grid_size}")
     print(f"Founders: {len(sim.population)} organisms\n")
 
     logger.snapshot(sim)  # t=0 baseline
