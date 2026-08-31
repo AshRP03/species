@@ -47,25 +47,43 @@ def maybe_replicate(
     child.age = 0
     child.energy = org.energy
     child.position = nearby_position(org.position, rng, grid_size)
+    # Learning state is within-lifetime: start the child fresh.
+    child.reward_baseline = 0.0
+    child.steps_since_fed = 0
+    for s in child.synapses:
+        s.elig = 0.0
     mutate(child, rng)
     child.refresh_role_cache()
     return child
 
 
 def mutate(org: Organism, rng: np.random.Generator) -> None:
-    """With probability MUTATION_RATE, apply one structural/parametric change."""
-    if rng.random() >= config.MUTATION_RATE:
-        return
+    """Two mutation regimes, deliberately separated:
 
-    choice = rng.integers(0, 4)
-    if choice == 0:
-        _add_edge(org, rng)
-    elif choice == 1:
-        _remove_weakest_edge(org)
-    elif choice == 2:
-        _add_node(org, rng)
-    else:
-        _perturb_weights(org, rng)
+    1. CONTINUOUS micro-mutation (always, tiny): every heritable continuous
+       parameter -- synapse weights and per-neuron threshold / memory_decay /
+       noise_scale -- drifts by a small gaussian step on EVERY birth. Any one
+       generation barely changes, but selection accumulates the beneficial
+       drift across many generations: a smooth evolutionary walk.
+    2. RARE structural (macro) mutation: a discrete topology change (add/remove
+       edge, add node) at a low per-birth rate, so innovations are occasional
+       rather than a fresh upheaval every generation.
+
+    This replaces the old scheme where a single 10%-per-birth dice-roll picked
+    one discrete change (often a large topological jump) -- "a new uncertainty
+    every generation" -- with subtle change that stacks over time plus infrequent
+    structural leaps.
+    """
+    _micro_mutate(org, rng)
+
+    if rng.random() < config.STRUCTURAL_MUTATION_RATE:
+        choice = rng.integers(0, 3)
+        if choice == 0:
+            _add_edge(org, rng)
+        elif choice == 1:
+            _remove_weakest_edge(org)
+        else:
+            _add_node(org, rng)
 
 
 def _valid_dst(org: Organism, nid: int) -> bool:
@@ -113,6 +131,7 @@ def _add_node(org: Organism, rng: np.random.Generator) -> None:
         neuron_type="inter",
         threshold=float(rng.uniform(0.2, 0.8)),
         bias=float(rng.normal(0.0, 0.1)),
+        memory_decay=float(rng.uniform(*config.INTERNEURON_MEMORY_DECAY_RANGE)),
     )
 
     if org.synapses:
@@ -133,10 +152,27 @@ def _add_node(org: Organism, rng: np.random.Generator) -> None:
             )
 
 
-def _perturb_weights(org: Organism, rng: np.random.Generator) -> None:
-    if not org.synapses:
+def _micro_mutate(org: Organism, rng: np.random.Generator) -> None:
+    """Small gaussian drift on EVERY heritable continuous parameter, applied on
+    every birth. Individually tiny; accumulates across generations under
+    selection. Covers synapse weights and each non-sensor neuron's intrinsic
+    properties (threshold, plus memory_decay for interneurons / noise_scale for
+    actuators -- the genome traits that used to be frozen at birth)."""
+    s = config.MICRO_MUTATION_SCALE
+    if s <= 0.0:
         return
-    noise = rng.normal(0.0, config.WEIGHT_PERTURB_SCALE, size=len(org.synapses))
     clip = config.WEIGHT_CLIP
-    for syn, dw in zip(org.synapses, noise):
-        syn.weight = float(np.clip(syn.weight + dw, -clip, clip))
+
+    if org.synapses:
+        noise = rng.normal(0.0, s, size=len(org.synapses))
+        for syn, dw in zip(org.synapses, noise):
+            syn.weight = float(np.clip(syn.weight + dw, -clip, clip))
+
+    for n in org.neurons.values():
+        if n.neuron_type == "sensor":
+            continue
+        n.threshold = float(np.clip(n.threshold + rng.normal(0.0, s), 0.02, 1.5))
+        if n.neuron_type == "inter":
+            n.memory_decay = float(np.clip(n.memory_decay + rng.normal(0.0, s), 0.0, 0.98))
+        elif n.neuron_type == "actuator":
+            n.noise_scale = float(np.clip(n.noise_scale + rng.normal(0.0, s), 0.0, 1.0))

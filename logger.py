@@ -44,7 +44,8 @@ class Logger:
             "mean_firing_rate": _safe_mean(firing),
             "max_generation": max((o.generation for o in pop), default=0),
             # --- perception-action observables (the headline metrics) ---
-            "sensorimotor_alignment": getattr(sim, "mean_alignment", 0.0),
+            # Interval-averaged alignment (per-step value is too noisy to read).
+            "sensorimotor_alignment": sim.alignment_window() if hasattr(sim, "alignment_window") else 0.0,
             "frac_with_loop": struct["frac_with_loop"],
             "mean_sa_pairs": struct["mean_sa_pairs"],
             "mean_influence": causal["mean_influence"],

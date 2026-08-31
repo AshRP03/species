@@ -34,10 +34,15 @@ def parse_args() -> argparse.Namespace:
 
 
 def apply_foraging_regime() -> None:
-    # Food stays abundant enough to survive on, but drifts continuously so that
-    # tracking sensed energy (a perception-action loop) pays off at the margin.
-    config.PATCH_DRIFT_STEP = 0.4       # food wanders ~0.4 cells/step
-    config.SPAWN_RADIUS = 8             # moderate dispersal
+    # Dynamic blooms: food supply stays constant but locations turn over, so
+    # camping fails and tracking sensed energy pays off. A curriculum ramps the
+    # pressure in gradually so navigators are progressively favoured rather than
+    # the naive founder population dying all at once.
+    config.FORAGE_ENABLED = True
+    config.PATCH_MAX_AGE = 250          # bloom lifespan after the curriculum ramp
+    config.PATCH_RESPAWN_RADIUS = 0     # blooms reappear anywhere -> real search
+    config.FORAGE_CURRICULUM_STEPS = 3000
+    config.SPAWN_RADIUS = 8             # moderate offspring dispersal
     config.SENESCENCE_SCALE = 0.0003
 
 

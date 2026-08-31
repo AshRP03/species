@@ -86,7 +86,7 @@ def sensor_actuator_reach(org: Organism) -> tuple[bool, int]:
 # ---------------------------------------------------------------------------
 # 3. Causal: single-sensor perturbation -> actuator response
 # ---------------------------------------------------------------------------
-def influence_matrix(org: Organism, passes: int = 3) -> np.ndarray:
+def influence_matrix(org: Organism, rng: np.random.Generator, passes: int = 3) -> np.ndarray:
     """(n_sensor, n_actuator) matrix: activate one sensor, run a few propagation
     passes (so signal can traverse depth), read which actuators fire.
 
@@ -106,7 +106,7 @@ def influence_matrix(org: Organism, passes: int = 3) -> np.ndarray:
             org.neurons[sid].state = 1.0
             for _ in range(passes):
                 # keep the probed sensor clamped high across passes
-                propagate(org)
+                propagate(org, rng)
                 org.neurons[sid].state = 1.0
             for j, aid in enumerate(actuators):
                 mat[i, j] = org.neurons[aid].state
@@ -140,14 +140,16 @@ def causal_summary(population, sample: int = 40, rng: np.random.Generator | None
     the population."""
     if not population:
         return {"mean_influence": 0.0, "matched_reflex_rate": 0.0}
+    if rng is None:
+        rng = np.random.default_rng()
     pop = population
-    if rng is not None and len(pop) > sample:
+    if len(pop) > sample:
         idx = rng.choice(len(pop), size=sample, replace=False)
         pop = [population[i] for i in idx]
     dens = []
     matched = []
     for o in pop:
-        m = influence_matrix(o)
+        m = influence_matrix(o, rng)
         if m.size == 0:
             continue
         dens.append(float(m.mean()))
