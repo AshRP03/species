@@ -1,112 +1,118 @@
-# SPECIES — V0 Working Prototype
+# SPECIES
 
-A minimal simulation where sparse neural graphs live in a 2D world, spend energy
-to exist and compute, harvest energy from patches, and replicate on surplus.
-No backprop, no training loop — just a graph, an energy economy, local Hebbian
-learning, and evolving topology.
+**Sparse Pattern-Emergent Cortical Intelligence via Evolutionary Selection**
 
-## The actual research goal
+SPECIES is an experimental simulation of adaptive agents in a resource-constrained 2D environment. Instead of training a fixed neural-network architecture with backpropagation, the system evolves sparse neural graphs through energy economics, structural mutation, and local Hebbian learning.
 
-The long-term target is **not** sparsity (that was a proxy). It is to watch for
-**perception-action loops** — sensor input causally driving adaptive movement —
-and eventually for distinct sub-regions of the graph to become attributable to
-specific functions (the cortex / attention-head analogy). Everything below is
-instrumented toward observing that.
+> **Research question:** Can perception-action loops emerge when agents must survive, move, and reproduce in an environment?
 
-## Run
+## Why this project exists
+
+The goal is not simply to produce sparse networks. SPECIES is an instrumented environment for studying whether sensor inputs can become causally connected to adaptive behavior—and whether specialized functional regions can emerge within an evolving graph.
+
+The project currently treats the following as separate signals:
+
+- **Behavior:** Does movement align with sensed resources?
+- **Structure:** Does a directed sensor-to-actuator path exist?
+- **Causality:** Does activating a sensor influence the corresponding actuator?
+
+This separation makes it possible to distinguish a network that contains the *substrate* for intelligence from one that is actually using it.
+
+## Current model
+
+Each organism:
+
+1. Exists as a sparse directed neural graph.
+2. Receives directional sensor input from a 2D environment.
+3. Propagates activity through threshold-based neurons.
+4. Moves and harvests energy from environmental patches.
+5. Updates connections through local Hebbian learning.
+6. Replicates when it accumulates sufficient energy.
+7. Produces offspring with structural and parameter mutations.
+
+The simulation includes an energy economy, senescence, population management, environmental regimes, CSV logging, and headless-safe visualizations.
+
+## Run the simulation
 
 ```bash
-cd species
-python main.py                       # default (camping) regime, saves plots + stats
-python main.py --timesteps 10000     # longer run
-python main.py --forage              # foraging regime (drifting food) — experimental
-python main.py --seed 7 --no-plots   # different seed, headless
+python main.py
 ```
 
-## Files
+Useful experiments:
 
-| file | role |
-|------|------|
-| `config.py` | all constants (the energy economy lives here) |
-| `organism.py` | Neuron/Synapse/Organism, threshold propagation, Hebbian update |
-| `environment.py` | patch field, directional sensors, harvesting, movement |
-| `evolution.py` | replication + structural mutation (add/remove edge, add node, perturb) |
-| `simulation.py` | per-timestep orchestration and population management |
-| `analysis.py` | **perception-action instrumentation** (see below) |
-| `logger.py` | periodic summary stats → CSV |
-| `visualizer.py` | world scatter + history plots (matplotlib, headless-safe) |
-| `main.py` | CLI entry point |
+```bash
+# Longer default-regime run
+python main.py --timesteps 10000
 
-## Where this deviates from the brief
+# Experimental drifting-food regime
+python main.py --forage
 
-The brief's raw constants do not self-bootstrap — random-walking founders can't
-navigate to sparse patches and starve before reproducing, and a single patch
-(cap 10) can't supply the replication threshold (20). Two changes were needed to
-get a living, evolving population:
+# Reproducible headless run
+python main.py --seed 7 --no-plots
+```
 
-1. **Rebalanced economy** (`config.py`): denser/richer renewable patches, longer
-   starting runway, wider spawn dispersal so offspring can colonize neighbouring
-   patches before navigation has evolved.
-2. **Senescence** (`SENESCENCE_SCALE`): metabolic cost grows with age. This is an
-   addition beyond the brief's starvation-only death. Without it, successful
-   "campers" become immortal, the population freezes at a subsistence pool, and
-   evolution stalls (max generation flatlines). Set `SENESCENCE_SCALE = 0.0` to
-   recover the original starvation-only behaviour.
+Outputs include population statistics, world visualizations, and history plots. See `config.py` for the simulation parameters that define the energy economy and evolutionary pressure.
 
-## Perception-action instrumentation (`analysis.py`)
+## Repository map
 
-Three complementary probes, surfaced in the periodic log and `history.png`:
+| File | Responsibility |
+|---|---|
+| `organism.py` | Neurons, synapses, threshold propagation, and Hebbian updates |
+| `environment.py` | Resource patches, directional sensors, harvesting, and movement |
+| `evolution.py` | Replication and structural mutation |
+| `simulation.py` | Timestep orchestration and population management |
+| `analysis.py` | Sensorimotor, structural, and causal instrumentation |
+| `logger.py` | Periodic summary statistics and CSV output |
+| `visualizer.py` | World and experiment-history plots |
+| `main.py` | Command-line entry point |
+| `experiments/` | Experiment configurations and exploratory runs |
 
-1. **Behavioural — `sensorimotor_alignment`** (the headline). Cosine similarity
-   between the direction of sensed energy and the direction the organism
-   actually moved. ~0 = blind wandering; > 0 = moving toward energy (a working
-   loop); < 0 = fleeing energy.
-2. **Structural — `frac_with_loop`, `mean_sa_pairs`.** Fraction of organisms with
-   a directed sensor→actuator path, and how many such pairs. This is the wiring
-   *substrate*; it can exist without being used.
-3. **Causal — `matched_reflex_rate`, `mean_influence`.** Activate one sensor,
-   propagate, read the actuators. `matched_reflex_rate` measures whether sensor
-   *k* drives the *same-direction* actuator (N sensor → move north) — an
-   adaptive reflex arc, and the first step toward attributing function to
-   structure.
+## Instrumentation
 
-## Findings so far (seed 42)
+The simulation exposes three complementary measurements:
 
-**The substrate is universal; the function is absent.** In the default regime:
+### 1. Behavioral: `sensorimotor_alignment`
 
-- `frac_with_loop = 1.00` — *every* organism has sensor→actuator wiring. Random
-  sparse graphs already contain the loop substrate.
-- `sensorimotor_alignment ≈ 0.00` — movement is uncorrelated with sensed energy.
-  Organisms wander blindly.
-- `matched_reflex_rate ≈ 0.03` — a sensor almost never drives its matching
-  actuator.
+Cosine similarity between the direction of sensed energy and the direction an organism moved.
 
-The loop exists but is **functionally dead**, because the default economy rewards
-*camping* (sit on a static patch): you never need to sense or move to survive, so
-nothing selects for tuning the loop. This shows up spatially too — the *fullest*
-patches in `world.png` sit unoccupied; lineages stay local to where an ancestor
-happened to land.
+- Approximately `0`: movement is uncorrelated with sensed energy
+- Greater than `0`: movement tends toward sensed energy
+- Less than `0`: movement tends away from sensed energy
 
-**Foraging pressure does not (yet) make the loop emerge — it causes extinction.**
-The `--forage` regime makes food drift so tracking it should pay. But across
-drift levels the population goes **extinct** rather than evolving navigation:
-random networks can't forage, and structural mutation (~2.5%/birth) plus Hebbian
-tuning are far too slow to discover a sensorimotor reflex before the drifting
-food starves the population. This is a genuine result: **the perception-action
-loop does not bootstrap for free** under these mechanisms.
+### 2. Structural: `frac_with_loop`, `mean_sa_pairs`
 
-Meta-point: sparsity was similarly a non-starter — sweeping `EDGE_COST_SCALE`
-either barely moves density or drives extinction, for the same timescale reason.
+These measure whether organisms contain directed sensor-to-actuator paths. They describe the available wiring substrate, not whether the wiring is functionally useful.
 
-## Suggested next steps (toward emergent loops)
+### 3. Causal: `matched_reflex_rate`, `mean_influence`
 
-- **Make the loop learnable faster.** The bottleneck is the rate of adaptive
-  structural/weight change. Options: much stronger/faster plasticity on
-  sensor→actuator paths, or a developmental bias that preferentially wires
-  sensors toward actuators, giving selection real variance to grab.
-- **Curriculum, not cliff.** Start from an established (camping) population, then
-  *ramp* drift up slowly so navigators are progressively favoured instead of the
-  whole naive population dying at once.
-- **Then look for modularity.** Once alignment is reliably > 0, use
-  `influence_matrix` to ask whether specific subgraphs are responsible for
-  specific sensor→actuator reflexes — the first evidence of functional regions.
+A controlled sensor-activation probe propagates activity through the organism and measures actuator response. This tests whether a sensor drives the actuator associated with the same direction.
+
+## Findings so far
+
+The initial experiments show that structural connectivity does not imply useful behavior.
+
+In the default regime:
+
+- Every organism can contain sensor-to-actuator wiring.
+- `sensorimotor_alignment` remains approximately `0.00`.
+- `matched_reflex_rate` remains low.
+
+The default economy rewards staying on a resource patch, so there is little selection pressure to develop navigation. The loop exists structurally but is functionally inactive.
+
+In the drifting-food regime, the population currently tends toward extinction rather than evolving navigation. Random networks cannot reliably forage, and the combination of structural mutation and Hebbian adaptation does not discover useful sensorimotor behavior quickly enough.
+
+These are useful negative results: the perception-action loop does not bootstrap automatically under the current mechanisms and timescales.
+
+## Design lessons
+
+The experiments suggest three next directions:
+
+- **Increase learnability:** provide stronger or faster adaptation on sensor-to-actuator pathways.
+- **Use curriculum pressure:** transition gradually from stationary resources to drifting resources rather than applying a survival cliff.
+- **Measure modularity after behavior emerges:** use influence matrices to test whether subgraphs become associated with specific sensor-to-actuator functions.
+
+## Status
+
+SPECIES is an active research prototype. The current version is focused on making the simulation measurable and falsifiable before adding more complex learning mechanisms.
+
+The most important result so far is methodological: a graph can contain the wiring required for a perception-action loop without exhibiting the function itself.
